@@ -1,77 +1,139 @@
 import { useState } from 'react';
-import axios from 'axios';
-import TaskForm from '../../components/TaskForm';
-import TaskList from '../../components/TaskList';
-import Result from '../../components/Result';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 export default function Home() {
     const [tasks, setTasks] = useState([]);
-    const [result, setResult] = useState(null);
+    const [relations, setRelations] = useState([]);
+    const [task, setTask] = useState({ nom: '', duree: '' });
+    const [relation, setRelation] = useState({ id: '', predecesseurs: '' });
+    const [result, setResult] = useState('');
 
-    const addTask = (task) => {
-        setTasks([...tasks, task]);
+    const handleAddTask = async () => {
+        if (!task.nom || !task.duree) {
+            alert("Veuillez remplir tous les champs pour la tâche.");
+            return;
+        }
+        const response = await fetch('http://localhost:3001/add-task', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(task),
+        });
+        const newTask = await response.json();
+        setTasks([...tasks, newTask]);
+        setTask({ nom: '', duree: '' });
     };
 
-    const handleSubmitPost = async () => {
-        const formData = new URLSearchParams();
-        tasks.forEach((task, index) => {
-            formData.append(`id${index + 1}`, task.id);
-            formData.append(`name${index + 1}`, task.name);
-            formData.append(`duration${index + 1}`, task.duration);
-            formData.append(`dependencies${index + 1}`, task.dependencies.join(','));
+    const handleAddRelation = async () => {
+        if (!relation.id || !relation.predecesseurs) {
+            alert("Veuillez remplir tous les champs pour la relation.");
+            return;
+        }
+        const predecesseursArray = relation.predecesseurs.split(',').map(pred => pred.trim());
+        const response = await fetch('http://localhost:3001/add-relation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ id: relation.id, predecesseurs: predecesseursArray }),
         });
-
-        try {
-            const response = await axios.post('http://localhost/cgi-bin/pert.cgi', formData, {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
-            });
-
-            console.log('Réponse du serveur:', response.data);
-
-            if (response.data && response.data.totalDuration !== undefined && response.data.criticalPath !== undefined) {
-                setResult(response.data);
-            } else {
-                console.error('Structure de réponse inattendue', response.data);
-            }
-        } catch (error) {
-            console.error('Erreur lors de la récupération des résultats', error);
+        if (response.ok) {
+            setRelations([...relations, { id: relation.id, predecesseurs: predecesseursArray }]);
+            setRelation({ id: '', predecesseurs: '' });
+        } else {
+            const errorMessage = await response.text();
+            alert(`Erreur : ${errorMessage}`);
         }
     };
 
-    const handleSubmitGet = async () => {
-        const params = new URLSearchParams();
-        tasks.forEach((task, index) => {
-            params.append(`id${index + 1}`, task.id);
-            params.append(`name${index + 1}`, task.name);
-            params.append(`duration${index + 1}`, task.duration);
-            params.append(`dependencies${index + 1}`, task.dependencies.join(','));
-        });
-
-        try {
-            const response = await axios.get('http://localhost/cgi-bin/pert.cgi', { params });
-
-            console.log('Réponse du serveur:', response.data);
-
-            if (response.data && response.data.message) {
-                console.log(response.data.message);
-            } else {
-                console.error('Structure de réponse inattendue', response.data);
-            }
-        } catch (error) {
-            console.error('Erreur lors de la récupération des résultats', error);
-        }
+    const handleCalculate = async () => {
+        const response = await fetch('http://localhost:3001/calculate-dates');
+        const data = await response.text();
+        setResult(data);
     };
 
     return (
-        <div>
-            <h1>Application PERT</h1>
-            <TaskForm addTask={addTask} />
-            <TaskList tasks={tasks} />
-            <button onClick={handleSubmitPost}>Calculer PERT (POST)</button>
-            <button onClick={handleSubmitGet}>Envoyer (GET)</button>
-            {result && <Result result={result} />}
+        <div className="container">
+            <h1>PERT Calculator</h1>
+
+            <div className="mb-3">
+                <h2>Ajouter une tâche</h2>
+                <div className="form-group">
+                    <label htmlFor="taskName">Nom de la tâche</label>
+                    <input
+                        type="text"
+                        className="form-control"
+                        id="taskName"
+                        placeholder="Nom"
+                        value={task.nom}
+                        onChange={(e) => setTask({ ...task, nom: e.target.value })}
+                    />
+                </div>
+                <div className="form-group">
+                    <label htmlFor="taskDuration">Durée de la tâche (en jours)</label>
+                    <input
+                        type="number"
+                        className="form-control"
+                        id="taskDuration"
+                        placeholder="Durée"
+                        value={task.duree}
+                        onChange={(e) => setTask({ ...task, duree: e.target.value })}
+                    />
+                </div>
+                <button className="btn btn-primary mt-2" onClick={handleAddTask}>Ajouter la tâche</button>
+            </div>
+
+            {tasks.length > 0 && (
+                <div className="mb-3">
+                    <h3>Tâches ajoutées</h3>
+                    <ul className="list-group">
+                        {tasks.map(task => (
+                            <li key={task.id} className="list-group-item">
+                                <strong>{task.label}</strong> - {task.nom} (Durée: {task.duree} jours)
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            <div className="mb-3">
+                <h2>Ajouter une relation</h2>
+                <div className="form-group">
+                    <label htmlFor="dependentTask">Tâche dépendante</label>
+                    <input
+                        type="text"
+                        className="form-control"
+                        id="dependentTask"
+                        placeholder="Tâche dépendante (lettre)"
+                        value={relation.id}
+                        onChange={(e) => setRelation({ ...relation, id: e.target.value.toUpperCase() })}
+                    />
+                </div>
+                <div className="form-group">
+                    <label htmlFor="precedingTasks">Tâches précédentes</label>
+                    <input
+                        type="text"
+                        className="form-control"
+                        id="precedingTasks"
+                        placeholder="Tâches précédentes (lettres séparées par des virgules)"
+                        value={relation.predecesseurs}
+                        onChange={(e) => setRelation({ ...relation, predecesseurs: e.target.value.toUpperCase() })}
+                    />
+                </div>
+                <button className="btn btn-primary mt-2" onClick={handleAddRelation}>Ajouter la relation</button>
+            </div>
+
+            <div className="mb-3">
+                <button className="btn btn-success" onClick={handleCalculate}>Calculer les dates</button>
+            </div>
+
+            {result && (
+                <div className="mt-5">
+                    <h2>Résultat</h2>
+                    <pre>{result}</pre>
+                </div>
+            )}
         </div>
     );
 }

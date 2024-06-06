@@ -6,7 +6,7 @@ export default function Home() {
     const [relations, setRelations] = useState([]);
     const [task, setTask] = useState({ nom: '', duree: '' });
     const [relation, setRelation] = useState({ id: '', predecesseurs: '' });
-    const [result, setResult] = useState('');
+    const [result, setResult] = useState([]);
 
     const handleAddTask = async () => {
         if (!task.nom || !task.duree) {
@@ -49,7 +49,7 @@ export default function Home() {
 
     const handleCalculate = async () => {
         const response = await fetch('http://localhost:3001/calculate-dates');
-        const data = await response.text();
+        const data = await response.json();
         setResult(data);
     };
 
@@ -128,10 +128,39 @@ export default function Home() {
                 <button className="btn btn-success" onClick={handleCalculate}>Calculer les dates</button>
             </div>
 
-            {result && (
+            {result.length > 0 && (
                 <div className="mt-5">
                     <h2>Résultat</h2>
-                    <pre>{result}</pre>
+                    <table className="table">
+                        <thead>
+                        <tr>
+                            <th>Activité</th>
+                            <th>Durée</th>
+                            <th>Dépendances</th>
+                            <th>Début au plus tôt</th>
+                            <th>Début au plus tard</th>
+                            <th>Fin au plus tôt</th>
+                            <th>Fin au plus tard</th>
+                            <th>Marge</th>
+                            <th>Critique</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {result.map(task => (
+                            <tr key={task.id}>
+                                <td>{task.label}</td>
+                                <td>{task.duree}</td>
+                                <td>{task.dependencies}</td>
+                                <td>{task.debutT}</td>
+                                <td>{task.finT}</td>
+                                <td>{task.debutT + task.duree}</td>
+                                <td>{task.finT + task.duree}</td>
+                                <td>{task.marge}</td>
+                                <td>{task.critique ? '✔' : ''}</td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
                 </div>
             )}
         </div>

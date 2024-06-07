@@ -7,6 +7,7 @@ export default function Home() {
     const [task, setTask] = useState({ nom: '', duree: '' });
     const [relation, setRelation] = useState({ id: '', predecesseurs: '' });
     const [result, setResult] = useState([]);
+    const [dureeTotale, setDureeTotale] = useState(null);
 
     const handleAddTask = async () => {
         if (!task.nom || !task.duree) {
@@ -50,7 +51,8 @@ export default function Home() {
     const handleCalculate = async () => {
         const response = await fetch('http://localhost:3001/calculate-dates');
         const data = await response.json();
-        setResult(data);
+        setResult(data.tasks);
+        setDureeTotale(data.dureeTotale);
     };
 
     return (
@@ -131,6 +133,9 @@ export default function Home() {
             {result.length > 0 && (
                 <div className="mt-5">
                     <h2>Résultat</h2>
+                    {dureeTotale !== null && (
+                        <h3>Durée totale du projet : {dureeTotale +1} jours</h3>
+                    )}
                     <table className="table">
                         <thead>
                         <tr>
